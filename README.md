@@ -22,3 +22,5 @@ Beyond the Wget Wizard like UI, I added a few more things:
 - Warnings: for invalid JSON, secrets that would land in shell history, a missing URL scheme and shell-specific quoting problems.
 
 Windows PowerShell 5.1 strips double quotes from arguments passed to `curl.exe`, so JSON bodies break there. The page warns about this and suggests PowerShell 7 or putting the body in a file. Minify JSON is on by default, so the body goes on one line.
+
+<img width="774" height="968" alt="curl1" src="https://github.com/user-attachments/assets/a8ec7f01-0f12-4f10-9ed7-a758b7b77435" />

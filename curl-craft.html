@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cURL Craft (offline)</title>
+<style>
+  :root {
+    --bg: #f4f7f6; --card: #ffffff; --text: #1b2724; --muted: #5a6b66;
+    --line: #d7e0dd; --accent: #0e7c66; --accent-dark: #0a5d4c; --on-accent: #ffffff;
+    --code-bg: #101c19; --code-text: #d5f5e6; --warn-bg: #fff6df; --warn-text: #7a5200;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101614; --card: #18211e; --text: #e4ece9; --muted: #96a8a2;
+      --line: #2a3833; --accent: #34c9a6; --accent-dark: #5fdcc0; --on-accent: #08150f;
+      --code-bg: #0a100e; --code-text: #d5f5e6; --warn-bg: #3a2f12; --warn-text: #f1cf86;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { margin: 0 0 4px; font-size: 28px; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px;
+           background: var(--accent); color: var(--on-accent); vertical-align: middle; margin-left: 8px; }
+  .out { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0 12px; }
+  pre#cmd { margin: 0; padding: 14px 16px; background: var(--code-bg); color: var(--code-text);
+            border-radius: 8px; overflow: auto; max-height: 34vh; white-space: pre-wrap; word-break: break-all;
+            font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; min-height: 52px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 8px; align-items: center; }
+  button { font: inherit; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--accent);
+           background: var(--accent); color: var(--on-accent); cursor: pointer; }
+  button:hover { background: var(--accent-dark); }
+  button.secondary { background: transparent; color: var(--accent-dark); }
+  button.secondary:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .bar label, .top label { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .warn { background: var(--warn-bg); color: var(--warn-text); border-radius: 6px;
+          padding: 8px 12px; margin-top: 8px; font-size: 13px; }
+  .warn ul { margin: 0; padding-left: 18px; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 16px; margin: 4px 0 12px; }
+  summary { cursor: pointer; font-weight: 600; color: var(--accent-dark); }
+  table#exp { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+  table#exp td { padding: 5px 8px 5px 0; vertical-align: top; border-top: 1px solid var(--line); }
+  table#exp td:first-child { width: 46%; }
+  code { font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break: break-all; }
+  .top { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 4px 0 0; }
+  fieldset { background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+             margin: 16px 0; padding: 4px 16px 8px; }
+  legend { font-weight: 600; padding: 0 8px; color: var(--accent-dark); }
+  .row { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 6px 16px; padding: 10px 0;
+         border-bottom: 1px solid var(--line); align-items: start; }
+  .row[hidden] { display: none; }
+  .row:last-child { border-bottom: 0; }
+  .row > .lbl { font-weight: 600; padding-top: 6px; }
+  .help { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  input[type=text], select, textarea { width: 100%; max-width: 620px; font: inherit; padding: 6px 8px;
+      border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
+  textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; resize: vertical; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible
+      { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input[type=checkbox] { width: 18px; height: 18px; margin-top: 7px; }
+  select { width: auto; max-width: 100%; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 24px; }
+  @media (max-width: 640px) { .row { grid-template-columns: minmax(0, 1fr); } .row > .lbl { padding-top: 0; }
+                              table#exp td:first-child { width: auto; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>cURL Craft <span class="badge">offline</span></h1>
+  <p class="sub">Pick your options and get a ready-to-run <code>curl</code> command, with a plain-English explanation of every part. Nothing is sent anywhere: this page makes no network requests.</p>
+
+  <div class="out">
+    <pre id="cmd" aria-live="polite"></pre>
+    <div class="bar">
+      <button id="copy" type="button">Copy command</button>
+      <button id="save" type="button" class="secondary">Save as script</button>
+      <label>Shell
+        <select id="shell">
+          <option value="posix">bash / zsh / sh</option>
+          <option value="ps">PowerShell</option>
+          <option value="cmd">Windows cmd</option>
+        </select>
+      </label>
+      <label>Flags
+        <select id="syntax">
+          <option value="short">Short (-X)</option>
+          <option value="long">Long (--request)</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="multiline" style="margin:0"> Multi-line</label>
+    </div>
+    <div id="warns" class="warn" hidden></div>
+  </div>
+
+  <details id="explain" open>
+    <summary>What each part does</summary>
+    <table id="exp"></table>
+  </details>
+
+  <div class="top">
+    <label>Quick start
+      <select id="preset"><option value="">Choose a recipe...</option></select>
+    </label>
+    <button id="reset" type="button" class="secondary">Reset all</button>
+  </div>
+
+  <div id="form"></div>
+
+  <footer>
+    This builds a suggested command; it doesn't run anything. Use it as a starting point and edit before running.
+    On Windows the command uses <code>curl.exe</code>, because plain <code>curl</code> in Windows PowerShell is an alias for a different cmdlet.
+    Less common options (SOCKS details, cookie engines, HSTS, DNS-over-HTTPS, config files) are left out; see <code>man curl</code>.
+    Only send requests to servers you're allowed to test.
+  </footer>
+</main>
+
+<script>
+"use strict";
+
+var UAS = {
+  "firefox-mac": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0",
+  "chrome-win": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+  "safari-ios": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+  "googlebot": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+};
+var WRITE_OUT = {
+  status: "%{http_code}\\n",
+  timing: "dns:     %{time_namelookup}s\\nconnect: %{time_connect}s\\ntls:     %{time_appconnect}s\\nttfb:    %{time_starttransfer}s\\ntotal:   %{time_total}s\\nsize:    %{size_download} bytes\\n"
+};
+
+// ---- option definitions (drives both the UI and the tests) ---------------
+function sel(def, opts, rest) { var o = { type: "select", def: def, opts: opts }; for (var k in rest) o[k] = rest[k]; return o; }
+function range(vals, label) { return vals.map(function (v) { return [String(v), label ? label(v) : String(v)]; }); }
+
+var SECTIONS = [
+  { title: "Request", fields: [
+    { id: "url", label: "URL(s)", ph: "https://api.example.com/v1/items", help: "One URL, or several separated by spaces." },
+    sel("auto", [["auto", "Auto (GET, or POST/PUT when you add a body or upload)"], ["GET", "GET"], ["POST", "POST"], ["PUT", "PUT"],
+      ["PATCH", "PATCH"], ["DELETE", "DELETE"], ["HEAD", "HEAD (headers only)"], ["OPTIONS", "OPTIONS"]],
+      { id: "method", label: "Method", help: "curl chooses the right method itself when you add a body, so Auto is usually best." }),
+    { id: "custom", label: "Custom method", ph: "PROPFIND", help: "Overrides the choice above." },
+    { id: "headers", label: "Headers", type: "area", ph: "Accept: application/json\nX-Request-Id: 123",
+      help: "One per line as Name: value. A line like \"Accept:\" (nothing after the colon) removes a header curl would send by default." }
+  ] },
+  { title: "Body", fields: [
+    sel("none", [["none", "None"], ["json", "JSON"], ["raw", "Raw text / other"], ["form", "Form fields (URL-encoded)"],
+      ["multipart", "Multipart form (file uploads)"], ["binary", "Binary file as body"], ["upload", "Upload a file (PUT)"]],
+      { id: "bodyType", label: "Body type" }),
+    { id: "bodyJson", label: "JSON body", type: "area", ph: "{\"name\": \"Ada\", \"admin\": false}", show: { on: "bodyType", is: ["json"] },
+      help: "Content-Type and Accept headers for JSON are added for you unless you list your own." },
+    { id: "minify", label: "Minify JSON", type: "check", def: true, show: { on: "bodyType", is: ["json"] },
+      help: "Collapses the JSON onto one line, which keeps it safe in every shell." },
+    { id: "bodyRaw", label: "Raw body", type: "area", ph: "any text to send as-is", show: { on: "bodyType", is: ["raw"] } },
+    { id: "ctype", label: "Content-Type", ph: "text/plain", list: ["text/plain", "application/xml", "application/x-www-form-urlencoded", "application/octet-stream"],
+      show: { on: "bodyType", is: ["raw"] }, help: "Optional. Without it curl sends application/x-www-form-urlencoded." },
+    { id: "bodyForm", label: "Form fields", type: "area", ph: "name=Ada\nnote=hello world", show: { on: "bodyType", is: ["form"] },
+      help: "One name=value per line. Values are URL-encoded for you. With method GET they go in the query string instead." },
+    { id: "bodyMulti", label: "Multipart fields", type: "area", ph: "title=Holiday\nphoto=@/path/to/pic.jpg;type=image/jpeg", show: { on: "bodyType", is: ["multipart"] },
+      help: "One name=value per line. Use name=@path to attach a file." },
+    { id: "bodyFile", label: "File path", ph: "payload.bin", show: { on: "bodyType", is: ["binary", "upload"] },
+      help: "Binary sends the file's exact bytes as the body; Upload sends it with PUT." }
+  ] },
+  { title: "Authentication & identity", fields: [
+    sel("none", [["none", "None"], ["basic", "Basic (user:password)"], ["digest", "Digest"], ["bearer", "Bearer token"],
+      ["header", "API key in a header"], ["netrc", "Credentials from ~/.netrc"]], { id: "authType", label: "Authentication" }),
+    { id: "authUser", label: "Username", show: { on: "authType", is: ["basic", "digest"] } },
+    { id: "authPass", label: "Password", show: { on: "authType", is: ["basic", "digest"] }, help: "Leave empty and curl will prompt for it, keeping it out of your shell history." },
+    { id: "authToken", label: "Token", show: { on: "authType", is: ["bearer"] }, ph: "YOUR_TOKEN" },
+    { id: "authHeaderName", label: "Header name", show: { on: "authType", is: ["header"] }, ph: "X-API-Key" },
+    { id: "authHeaderValue", label: "Header value", show: { on: "authType", is: ["header"] } },
+    { id: "cookies", label: "Send cookies", ph: "session=abc123; theme=dark", help: "Either name=value pairs, or the path of a cookie file." },
+    { id: "cookieJar", label: "Save cookies to file", ph: "cookies.txt", help: "Stores cookies the server sets, so a later request can reuse them." },
+    sel("default", [["default", "Don't fake (curl's own user agent)"], ["firefox-mac", "Firefox on macOS"], ["chrome-win", "Chrome on Windows 10"],
+      ["safari-ios", "Safari on iOS"], ["googlebot", "GoogleBot"], ["none", "Send no user agent"]], { id: "ua", label: "User agent" }),
+    { id: "referer", label: "Referrer URL", ph: "https://example.com/page", help: "For servers that check where the request came from." }
+  ] },
+  { title: "Behavior", fields: [
+    { id: "follow", label: "Follow redirects", type: "check", help: "Follow 301/302/307/308 responses to their final destination." },
+    sel("", [["", "Default (50)"]].concat(range([0, 1, 3, 5, 10, 20])), { id: "maxredirs", label: "Maximum redirects", show: { on: "follow", is: [true] } }),
+    { id: "compressed", label: "Compressed transfer", type: "check", help: "Ask for gzip/br/zstd and decompress automatically. Usually faster." },
+    sel("", [["", "Default (negotiated)"], ["1.1", "HTTP/1.1"], ["2", "HTTP/2"], ["3", "HTTP/3 (needs a curl built with it)"]], { id: "httpver", label: "HTTP version" }),
+    sel("", [["", "Default"], ["f", "Fail on HTTP errors (4xx/5xx): exit non-zero, no body"], ["body", "Fail on HTTP errors, but still show the body"]],
+      { id: "fail", label: "On server errors", help: "Handy in scripts so a 404 isn't treated as success." }),
+    { id: "globoff", label: "Disable URL globbing", type: "check", help: "Treat [ ] { } in the URL literally instead of as ranges/sets." },
+    { id: "parallel", label: "Fetch URLs in parallel", type: "check", help: "Only useful with more than one URL." }
+  ] },
+  { title: "TLS, proxy & network", fields: [
+    { id: "insecure", label: "Ignore cert problems", type: "check", help: "Skip TLS certificate verification. Insecure: only for servers you trust." },
+    { id: "cacert", label: "CA certificate file", ph: "ca.pem" },
+    { id: "cert", label: "Client certificate", ph: "client.pem" },
+    { id: "key", label: "Client private key", ph: "client.key" },
+    sel("", [["", "Default"], ["1.2", "TLS 1.2 or newer"], ["1.3", "TLS 1.3 or newer"]], { id: "tls", label: "Minimum TLS version" }),
+    { id: "proxy", label: "Proxy", ph: "http://proxy.example.com:8080", help: "Also accepts socks5://host:port." },
+    { id: "proxyUser", label: "Proxy user", ph: "user:password" },
+    { id: "noproxy", label: "Bypass all proxies", type: "check", help: "Ignore http_proxy / https_proxy environment variables." },
+    { id: "resolve", label: "Resolve host manually", ph: "example.com:443:127.0.0.1", help: "Pretend a hostname points at a specific IP (handy for testing before DNS changes)." },
+    sel("", [["", "Either"], ["4", "IPv4 only"], ["6", "IPv6 only"]], { id: "ipver", label: "IP version" })
+  ] },
+  { title: "Timeouts, retries & limits", fields: [
+    sel("", [["", "None (default)"]].concat(range([5, 10, 30, 60], function (v) { return v + " seconds"; })), { id: "connectTimeout", label: "Connect timeout" }),
+    sel("", [["", "None (default)"], ["10", "10 seconds"], ["30", "30 seconds"], ["60", "1 minute"], ["300", "5 minutes"], ["600", "10 minutes"]],
+      { id: "maxTime", label: "Maximum total time", help: "Give up on the whole transfer after this long." }),
+    sel("0", [["0", "Don't retry (default)"], ["1", "Once"], ["3", "3 times"], ["5", "5 times"], ["10", "10 times"]], { id: "retry", label: "Retry on transient errors" }),
+    sel("", [["", "Default (backoff)"], ["1", "1 second"], ["2", "2 seconds"], ["5", "5 seconds"], ["10", "10 seconds"]],
+      { id: "retryDelay", label: "Wait between retries", show: { on: "retry", not: ["0"] } }),
+    { id: "retryAll", label: "Retry on every error", type: "check", show: { on: "retry", not: ["0"] }, help: "Normally only timeouts and 5xx-style errors are retried." },
+    { id: "resume", label: "Resume incomplete download", type: "check", help: "Continue a partial download where it stopped (if the server supports it)." },
+    { id: "limitRate", label: "Limit speed", ph: "500k", help: "Cap bandwidth, e.g. 200k or 2m per second." }
+  ] },
+  { title: "Output", fields: [
+    sel("stdout", [["stdout", "Print to the terminal"], ["remote", "Save using the remote file name"], ["file", "Save to a file I choose"], ["discard", "Throw the body away"]],
+      { id: "output", label: "Where does the response go?" }),
+    { id: "outFile", label: "File name", ph: "response.json", show: { on: "output", is: ["file"] } },
+    { id: "remoteName", label: "Prefer server's file name", type: "check", show: { on: "output", is: ["remote"] }, help: "Use the name from the Content-Disposition header when the server sends one." },
+    { id: "outDir", label: "Output directory", ph: "downloads", show: { on: "output", is: ["remote", "file"] } },
+    { id: "createDirs", label: "Create missing folders", type: "check", show: { on: "output", is: ["remote", "file"] } },
+    { id: "includeHeaders", label: "Include response headers", type: "check", help: "Print status line and headers before the body." },
+    { id: "dumpHeaders", label: "Save headers to file", ph: "headers.txt" },
+    sel("default", [["default", "Normal (progress meter)"], ["silent", "Silent"], ["silentErr", "Silent, but show errors"], ["progress", "Simple progress bar"], ["verbose", "Verbose (full request/response detail)"]],
+      { id: "verbosity", label: "How much info?" }),
+    sel("", [["", "Nothing extra"], ["status", "Print the HTTP status code"], ["timing", "Print a timing breakdown"], ["custom", "Custom format..."]], { id: "writeOut", label: "Print stats after the transfer" }),
+    { id: "writeCustom", label: "Custom format", ph: "%{http_code} %{time_total}s\\n", show: { on: "writeOut", is: ["custom"] },
+      help: "Uses curl's --write-out variables such as %{http_code}, %{time_total}, %{url_effective}." }
+  ] }
+];
+
+var PRESETS = {
+  "Simple GET with status code": { url: "https://example.com", verbosity: "silentErr", writeOut: "status", output: "discard" },
+  "POST JSON": { url: "https://api.example.com/v1/items", bodyType: "json", bodyJson: "{\"name\": \"Ada\", \"admin\": false}", verbosity: "silentErr", includeHeaders: true },
+  "API call with bearer token": { url: "https://api.example.com/v1/me", authType: "bearer", authToken: "YOUR_TOKEN", headers: "Accept: application/json", compressed: true, fail: "body", verbosity: "silentErr" },
+  "Download a file (resumable)": { url: "https://example.com/big-file.zip", follow: true, output: "remote", remoteName: true, resume: true, retry: "3", verbosity: "progress" },
+  "Check headers and redirects": { url: "https://example.com", method: "HEAD", follow: true, verbosity: "silent", includeHeaders: true },
+  "Time a request": { url: "https://example.com", output: "discard", verbosity: "silent", writeOut: "timing", compressed: true },
+  "Upload a file with PUT": { url: "https://example.com/upload/report.pdf", bodyType: "upload", bodyFile: "report.pdf", verbosity: "progress" },
+  "Log in with a form and keep cookies": { url: "https://example.com/login", bodyType: "form", bodyForm: "username=ada\npassword=secret", cookieJar: "cookies.txt", follow: true, verbosity: "silentErr" }
+};
+
+function allFields() {
+  var out = [];
+  SECTIONS.forEach(function (s) { s.fields.forEach(function (f) { out.push(f); }); });
+  return out;
+}
+function defOf(f) {
+  if (f.def !== undefined) return f.def;
+  if (f.type === "check") return false;
+  if (f.type === "select") return f.opts[0][0];
+  return "";
+}
+function defaults() {
+  var s = { syntax: "short", shell: "posix" };
+  allFields().forEach(function (f) { s[f.id] = defOf(f); });
+  return s;
+}
+function visible(f, s) {
+  if (!f.show) return true;
+  var v = s[f.show.on];
+  if (f.show.is) return f.show.is.indexOf(v) > -1;
+  if (f.show.not) return f.show.not.indexOf(v) === -1;
+  return true;
+}
+
+// ---- quoting -------------------------------------------------------------
+function quote(s, shell) {
+  if (s === "") return shell === "cmd" ? '""' : "''";
+  if (/^-[A-Za-z#]+$/.test(s)) return s; // short flags like -sS or -#
+  if (shell === "posix") {
+    return /^[A-Za-z0-9_@%+=:,.\/-]+$/.test(s) ? s : "'" + s.replace(/'/g, "'\\''") + "'";
+  }
+  if (shell === "ps") {
+    return /^[A-Za-z0-9_@%+=:,.\/\\-]+$/.test(s) ? s : "'" + s.replace(/'/g, "''") + "'";
+  }
+  return /^[A-Za-z0-9_@%+=:,.\/\\-]+$/.test(s) ? s : '"' + s.replace(/"/g, '\\"') + '"';
+}
+function lines(str) {
+  return (str || "").split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+}
+
+// ---- command builder -----------------------------------------------------
+// Returns {groups: [{t:[tokens], d:"description"}], warnings: [...]}
+function build(s) {
+  var L = s.syntax === "long", g = [], w = [];
+  function add(d, t) { g.push({ t: t, d: d }); }
+  function flag(sh, lg, d) { add(d, [L ? lg : sh]); }
+  function val(sh, lg, v, d) { add(d, [L ? lg : sh, v]); }
+
+  var urls = (s.url || "").trim().split(/\s+/).filter(Boolean);
+  var userHeaders = lines(s.headers);
+  function hasHeader(name) {
+    return userHeaders.some(function (h) { return h.toLowerCase().indexOf(name.toLowerCase() + ":") === 0; });
+  }
+  var bt = s.bodyType;
+  var method = (s.custom || "").trim() || s.method;
+  var implicit = bt === "upload" ? "PUT" : (bt !== "none" ? "POST" : "GET");
+  var isHead = false;
+
+  // method
+  if (method === "HEAD") {
+    flag("-I", "--head", "Fetch the headers only (sends a HEAD request)");
+    isHead = true;
+    if (bt !== "none") w.push("A HEAD request has no body, so the body options were ignored.");
+    bt = "none";
+  } else if (method === "GET" && bt === "form") {
+    flag("-G", "--get", "Put the form fields in the URL's query string instead of the body");
+  } else if (method !== "auto" && method !== implicit) {
+    val("-X", "--request", method, "Use the " + method + " method");
+    if (method === "GET" && bt !== "none") w.push("A GET request with a body is unusual; many servers ignore or reject it.");
+    if (method === "POST" && s.follow)
+      w.push("-X POST keeps the method POST on every redirect, even where curl would normally switch to GET after a 301/302.");
+  }
+
+  // headers
+  userHeaders.forEach(function (h) {
+    val("-H", "--header", h, "Add the header \"" + h + "\"");
+    if (!/[:;]/.test(h)) w.push("The header \"" + h + "\" has no colon, so curl will ignore it.");
+  });
+  if (bt === "json") {
+    if (!hasHeader("Content-Type")) val("-H", "--header", "Content-Type: application/json", "Tell the server the body is JSON");
+    if (!hasHeader("Accept")) val("-H", "--header", "Accept: application/json", "Ask for a JSON response");
+  }
+  if (bt === "raw" && (s.ctype || "").trim() && !hasHeader("Content-Type"))
+    val("-H", "--header", "Content-Type: " + s.ctype.trim(), "Set the body's content type");
+
+  // body
+  function dataTok(text, d) {
+    if (text.charAt(0) === "@") add(d, ["--data-raw", text]);
+    else add(d, [L ? "--data" : "-d", text]);
+  }
+  if (bt === "json") {
+    var jt = s.bodyJson || "";
+    if (!jt.trim()) w.push("The JSON body is empty.");
+    else {
+      try {
+        var parsed = JSON.parse(jt);
+        if (s.minify) jt = JSON.stringify(parsed);
+      } catch (e) { w.push("The JSON body isn't valid JSON (" + e.message + ")."); }
+      dataTok(jt, "Send this JSON as the request body");
+    }
+  } else if (bt === "raw") {
+    if ((s.bodyRaw || "") === "") w.push("The raw body is empty.");
+    else dataTok(s.bodyRaw, "Send this text as the request body");
+  } else if (bt === "form") {
+    var ff = lines(s.bodyForm);
+    if (!ff.length) w.push("Add at least one form field.");
+    ff.forEach(function (l) { add("Send the form field \"" + l.split("=")[0] + "\" (value is URL-encoded)", ["--data-urlencode", l]); });
+  } else if (bt === "multipart") {
+    var mf = lines(s.bodyMulti);
+    if (!mf.length) w.push("Add at least one multipart field.");
+    mf.forEach(function (l) {
+      add(l.indexOf("=@") > -1 ? "Attach the file for field \"" + l.split("=")[0] + "\"" : "Send the multipart field \"" + l.split("=")[0] + "\"",
+        [L ? "--form" : "-F", l]);
+    });
+  } else if (bt === "binary") {
+    var bp = (s.bodyFile || "").trim();
+    if (!bp) w.push("Enter the path of the file to send.");
+    else add("Send the file's exact bytes as the body", ["--data-binary", bp.charAt(0) === "@" ? bp : "@" + bp]);
+  } else if (bt === "upload") {
+    var up = (s.bodyFile || "").trim();
+    if (!up) w.push("Enter the path of the file to upload.");
+    else val("-T", "--upload-file", up, "Upload this file (curl uses PUT)");
+  }
+
+  // auth
+  var secret = false;
+  if (s.authType === "basic" || s.authType === "digest") {
+    if (s.authType === "digest") add("Use HTTP Digest authentication", ["--digest"]);
+    if ((s.authUser || "").trim()) {
+      var cred = s.authUser.trim() + (s.authPass ? ":" + s.authPass : "");
+      val("-u", "--user", cred, s.authPass ? "Log in as " + s.authUser.trim() : "Log in as " + s.authUser.trim() + " (curl will prompt for the password)");
+      if (s.authPass) secret = true;
+    } else w.push("Enter a username for " + s.authType + " authentication.");
+  } else if (s.authType === "bearer") {
+    if ((s.authToken || "").trim()) { val("-H", "--header", "Authorization: Bearer " + s.authToken.trim(), "Authenticate with a bearer token"); secret = true; }
+    else w.push("Enter a token for bearer authentication.");
+  } else if (s.authType === "header") {
+    if ((s.authHeaderName || "").trim()) { val("-H", "--header", s.authHeaderName.trim() + ": " + (s.authHeaderValue || ""), "Send the API key in the " + s.authHeaderName.trim() + " header"); secret = true; }
+    else w.push("Enter the header name for the API key.");
+  } else if (s.authType === "netrc") {
+    flag("-n", "--netrc", "Read the login for this host from your ~/.netrc file");
+  }
+  if (secret) w.push("The credential appears in the command text and may be saved in your shell history. After copying, consider swapping it for an environment variable (written with double quotes so the shell expands it).");
+
+  // cookies / identity
+  if ((s.cookies || "").trim()) val("-b", "--cookie", s.cookies.trim(), "Send these cookies (or read them from that file)");
+  if ((s.cookieJar || "").trim()) val("-c", "--cookie-jar", s.cookieJar.trim(), "Save cookies the server sets into this file");
+  if (s.ua === "none") val("-A", "--user-agent", "", "Send no User-Agent header");
+  else if (UAS[s.ua]) val("-A", "--user-agent", UAS[s.ua], "Pretend to be a different browser/client");
+  if ((s.referer || "").trim()) val("-e", "--referer", s.referer.trim(), "Send this Referer header");
+
+  // behavior
+  if (s.follow) {
+    flag("-L", "--location", "Follow redirects");
+    if (s.maxredirs !== "") add("Follow at most " + s.maxredirs + " redirects", ["--max-redirs", s.maxredirs]);
+  }
+  if (s.compressed) add("Ask for a compressed response and decompress it automatically", ["--compressed"]);
+  if (s.httpver === "1.1") add("Force HTTP/1.1", ["--http1.1"]);
+  if (s.httpver === "2") add("Use HTTP/2", ["--http2"]);
+  if (s.httpver === "3") { add("Use HTTP/3", ["--http3"]); w.push("HTTP/3 only works if your curl was built with HTTP/3 support (check with curl --version)."); }
+  if (s.fail === "f") flag("-f", "--fail", "Exit with an error on HTTP 4xx/5xx instead of printing the error page");
+  if (s.fail === "body") add("Exit with an error on HTTP 4xx/5xx but still print the error body", ["--fail-with-body"]);
+  if (s.globoff) flag("-g", "--globoff", "Treat [ ] { } in the URL literally");
+  if (s.parallel) {
+    flag("-Z", "--parallel", "Download several URLs at the same time");
+    if (urls.length < 2) w.push("Parallel mode only matters with more than one URL.");
+  }
+
+  // TLS / proxy / network
+  if (s.insecure) { flag("-k", "--insecure", "Skip TLS certificate checks"); w.push("Ignoring certificate problems disables TLS verification; only use it with servers you trust."); }
+  if ((s.cacert || "").trim()) add("Trust this CA certificate file", ["--cacert", s.cacert.trim()]);
+  if ((s.cert || "").trim()) val("-E", "--cert", s.cert.trim(), "Present this client certificate");
+  if ((s.key || "").trim()) add("Use this private key for the client certificate", ["--key", s.key.trim()]);
+  if (s.tls === "1.2") add("Require TLS 1.2 or newer", ["--tlsv1.2"]);
+  if (s.tls === "1.3") add("Require TLS 1.3 or newer", ["--tlsv1.3"]);
+  if ((s.proxy || "").trim()) val("-x", "--proxy", s.proxy.trim(), "Send the request through this proxy");
+  if ((s.proxyUser || "").trim()) val("-U", "--proxy-user", s.proxyUser.trim(), "Log in to the proxy");
+  if (s.noproxy) add("Ignore proxy environment variables", ["--noproxy", "*"]);
+  if ((s.resolve || "").trim()) add("Force this host:port to resolve to a chosen IP", ["--resolve", s.resolve.trim()]);
+  if (s.ipver === "4") flag("-4", "--ipv4", "Use IPv4 only");
+  if (s.ipver === "6") flag("-6", "--ipv6", "Use IPv6 only");
+
+  // timeouts / retries / limits
+  if (s.connectTimeout) add("Give up if connecting takes longer than " + s.connectTimeout + "s", ["--connect-timeout", s.connectTimeout]);
+  if (s.maxTime) val("-m", "--max-time", s.maxTime, "Abort the whole transfer after " + s.maxTime + "s");
+  if (s.retry !== "0") {
+    add("Retry up to " + s.retry + " time(s) on transient errors", ["--retry", s.retry]);
+    if (s.retryDelay) add("Wait " + s.retryDelay + "s between retries", ["--retry-delay", s.retryDelay]);
+    if (s.retryAll) add("Retry on any error, not just transient ones", ["--retry-all-errors"]);
+  }
+  if (s.resume) val("-C", "--continue-at", "-", "Resume a partial download where it stopped");
+  if ((s.limitRate || "").trim()) add("Limit bandwidth to " + s.limitRate.trim() + " per second", ["--limit-rate", s.limitRate.trim()]);
+
+  // output
+  var saving = s.output === "remote" || s.output === "file";
+  if (s.output === "remote") {
+    if (urls.length > 1) add("Save every URL under its own remote file name", ["--remote-name-all"]);
+    else flag("-O", "--remote-name", "Save the file using the name from the URL");
+    if (s.remoteName) flag("-J", "--remote-header-name", "Prefer the file name the server suggests");
+  } else if (s.output === "file") {
+    if ((s.outFile || "").trim()) {
+      val("-o", "--output", s.outFile.trim(), "Write the response to this file");
+      if (urls.length > 1) w.push("With several URLs and one output file, each download overwrites the last. Use \"Save using the remote file name\" instead.");
+    } else w.push("Enter a file name to save the response to.");
+  } else if (s.output === "discard") {
+    val("-o", "--output", s.shell === "posix" ? "/dev/null" : "NUL", "Throw the response body away");
+  }
+  if (saving && s.createDirs) add("Create any missing folders in the output path", ["--create-dirs"]);
+  if (saving && (s.outDir || "").trim()) add("Save into this directory", ["--output-dir", s.outDir.trim()]);
+  if (s.includeHeaders && !isHead) flag("-i", "--include", "Print the response headers before the body");
+  if ((s.dumpHeaders || "").trim()) val("-D", "--dump-header", s.dumpHeaders.trim(), "Write the response headers to this file");
+  if (s.verbosity === "silent") flag("-s", "--silent", "Hide the progress meter and messages");
+  else if (s.verbosity === "silentErr") {
+    if (L) { add("Hide the progress meter", ["--silent"]); add("...but still show errors", ["--show-error"]); }
+    else add("Hide the progress meter but still show errors", ["-sS"]);
+  } else if (s.verbosity === "progress") flag("-#", "--progress-bar", "Show a simple progress bar");
+  else if (s.verbosity === "verbose") flag("-v", "--verbose", "Show request and response details (lines starting > and <)");
+  if (s.writeOut === "status") val("-w", "--write-out", WRITE_OUT.status, "Print the HTTP status code at the end");
+  else if (s.writeOut === "timing") val("-w", "--write-out", WRITE_OUT.timing, "Print a timing breakdown at the end");
+  else if (s.writeOut === "custom" && (s.writeCustom || "").trim()) val("-w", "--write-out", s.writeCustom, "Print your custom stats at the end");
+
+  // URLs
+  urls.forEach(function (u) {
+    add("The URL to request", [u]);
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(u)) w.push("\"" + u + "\" has no scheme; curl will guess one (http:// for most hosts). Add https:// to be explicit.");
+    if (/[\[\]{}]/.test(u) && !s.globoff) w.push("The URL contains [ ] or { }, which curl treats as ranges/sets. Turn on \"Disable URL globbing\" if they're literal.");
+  });
+  if (!urls.length) w.push("Enter a URL to complete the command.");
+
+  return { groups: g, warnings: w };
+}
+
+function shellWarnings(groups, shell) {
+  var toks = [];
+  groups.forEach(function (g) { g.t.forEach(function (t) { toks.push(t); }); });
+  var out = [];
+  if (shell === "ps" && toks.some(function (t) { return t.indexOf('"') > -1; }))
+    out.push("Windows PowerShell 5.1 strips double quotes from arguments passed to curl.exe (PowerShell 7.3+ is fine). For JSON, use PowerShell 7, or save the body to a file and use the \"Binary file\" body type.");
+  if (shell === "cmd") {
+    if (toks.some(function (t) { return /[\r\n]/.test(t); })) out.push("cmd can't pass line breaks inside an argument. Minify the JSON or put the body in a file.");
+    if (toks.some(function (t) { return t.indexOf("%") > -1; })) out.push("Inside a .bat file, each % must be doubled (%%). At the interactive prompt, leave it as is.");
+  }
+  return out;
+}
+
+function tokensText(g, shell) { return g.t.map(function (t) { return quote(t, shell); }).join(" "); }
+
+function formatCommand(groups, shell, multiline) {
+  var parts = groups.map(function (g) { return tokensText(g, shell); });
+  parts.unshift(shell === "posix" ? "curl" : "curl.exe");
+  if (!multiline) return parts.join(" ");
+  var cont = shell === "posix" ? " \\" : (shell === "ps" ? " `" : " ^");
+  return parts.join(cont + "\n  ");
+}
+
+// ---- UI ------------------------------------------------------------------
+if (typeof document !== "undefined") {
+  var $ = function (id) { return document.getElementById(id); };
+  var rows = {};
+
+  function make(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function render() {
+    var host = $("form");
+    SECTIONS.forEach(function (sec) {
+      var fs = make("fieldset");
+      fs.appendChild(make("legend", "", sec.title));
+      sec.fields.forEach(function (f) {
+        var row = make("div", "row");
+        var lblWrap = make("div", "lbl");
+        var lbl = make("label", "", f.label); lbl.htmlFor = f.id; lblWrap.appendChild(lbl);
+        var cell = make("div");
+        var inp;
+        if (f.type === "select") {
+          inp = make("select");
+          f.opts.forEach(function (o) { inp.appendChild(new Option(o[1], o[0])); });
+        } else if (f.type === "check") {
+          inp = make("input"); inp.type = "checkbox";
+        } else if (f.type === "area") {
+          inp = make("textarea"); inp.rows = 4; inp.spellcheck = false;
+        } else {
+          inp = make("input"); inp.type = "text"; inp.autocomplete = "off"; inp.spellcheck = false;
+          if (f.list) {
+            var dl = make("datalist"); dl.id = f.id + "-list";
+            f.list.forEach(function (v) { dl.appendChild(new Option(v)); });
+            cell.appendChild(dl); inp.setAttribute("list", dl.id);
+          }
+        }
+        inp.id = f.id;
+        if (f.ph) inp.placeholder = f.ph;
+        cell.appendChild(inp);
+        if (f.help) cell.appendChild(make("div", "help", f.help));
+        row.appendChild(lblWrap); row.appendChild(cell);
+        fs.appendChild(row);
+        rows[f.id] = row;
+      });
+      host.appendChild(fs);
+    });
+    var ps = $("preset");
+    Object.keys(PRESETS).forEach(function (k) { ps.appendChild(new Option(k, k)); });
+  }
+
+  function readState() {
+    var s = defaults();
+    allFields().forEach(function (f) {
+      var e = $(f.id);
+      s[f.id] = f.type === "check" ? e.checked : e.value;
+    });
+    s.syntax = $("syntax").value;
+    s.shell = $("shell").value;
+    return s;
+  }
+  function setField(id, v) {
+    var e = $(id); if (!e) return;
+    if (e.type === "checkbox") e.checked = !!v; else e.value = v;
+  }
+  function resetAll() {
+    var d = defaults();
+    allFields().forEach(function (f) { setField(f.id, d[f.id]); });
+  }
+
+  var lastText = "", lastGroups = [];
+  function update() {
+    var s = readState();
+    allFields().forEach(function (f) { rows[f.id].hidden = !visible(f, s); });
+    var r = build(s);
+    lastGroups = r.groups;
+    lastText = formatCommand(r.groups, s.shell, $("multiline").checked);
+    $("cmd").textContent = lastText;
+
+    var tbl = $("exp"); tbl.textContent = "";
+    var head = make("tr");
+    var c1 = make("td"); c1.appendChild(make("code", "", s.shell === "posix" ? "curl" : "curl.exe"));
+    head.appendChild(c1); head.appendChild(make("td", "", "Run the curl tool"));
+    tbl.appendChild(head);
+    r.groups.forEach(function (g) {
+      var tr = make("tr"), a = make("td"), b = make("td", "", g.d);
+      a.appendChild(make("code", "", tokensText(g, s.shell)));
+      tr.appendChild(a); tr.appendChild(b); tbl.appendChild(tr);
+    });
+
+    var warns = r.warnings.concat(shellWarnings(r.groups, s.shell));
+    var w = $("warns"); w.textContent = "";
+    if (warns.length) {
+      w.hidden = false;
+      var ul = make("ul");
+      warns.forEach(function (t) { ul.appendChild(make("li", "", t)); });
+      w.appendChild(ul);
+    } else w.hidden = true;
+  }
+
+  render();
+  resetAll(); // apply each option's default (e.g. "Minify JSON" starts checked)
+  document.addEventListener("input", update);
+  document.addEventListener("change", update);
+
+  $("preset").addEventListener("change", function () {
+    var name = $("preset").value, p = PRESETS[name];
+    if (!p) return;
+    var keepUrl = $("url").value.trim();
+    resetAll();
+    Object.keys(p).forEach(function (k) { setField(k, p[k]); });
+    if (keepUrl) setField("url", keepUrl);
+    $("preset").value = "";
+    update();
+  });
+  $("reset").addEventListener("click", function () { resetAll(); update(); });
+
+  $("copy").addEventListener("click", function () {
+    var done = function () {
+      var b = $("copy"); b.textContent = "Copied!";
+      setTimeout(function () { b.textContent = "Copy command"; }, 1500);
+    };
+    var fallback = function () {
+      var t = document.createElement("textarea");
+      t.value = lastText; t.style.position = "fixed"; t.style.opacity = "0";
+      document.body.appendChild(t); t.select();
+      try { document.execCommand("copy"); done(); } catch (e) {}
+      document.body.removeChild(t);
+    };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(lastText).then(done, fallback);
+    else fallback();
+  });
+
+  $("save").addEventListener("click", function () {
+    var shell = $("shell").value;
+    var ext = shell === "posix" ? "sh" : (shell === "ps" ? "ps1" : "bat");
+    var head = shell === "posix" ? "#!/usr/bin/env bash\n" : (shell === "cmd" ? "@echo off\n" : "");
+    var blob = new Blob([head + formatCommand(lastGroups, shell, true) + "\n"], { type: "text/plain" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "curl-command." + ext;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+
+  update();
+}
+
+if (typeof module !== "undefined") module.exports = { build: build, formatCommand: formatCommand, defaults: defaults, shellWarnings: shellWarnings, PRESETS: PRESETS, SECTIONS: SECTIONS, quote: quote };
+</script>
+</body>
+</html>
